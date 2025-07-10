@@ -12,6 +12,7 @@
   "description": "A Node.js tool to trim YouTube videos by link and time range.",
   "dependencies": {
     "fluent-ffmpeg": "^2.1.2",
+    "youtube-dl-exec": "^3.0.22",
     "ytdl-core": "^4.11.5"
   }
 }

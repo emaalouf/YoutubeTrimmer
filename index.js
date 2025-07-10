@@ -1,43 +1,50 @@
 const ytdl = require('ytdl-core');
 const ffmpeg = require('fluent-ffmpeg');
 const fs = require('fs');
+const youtubedl = require('youtube-dl-exec');
 
 // Usage: node index.js <youtube_url> <start_time> <end_time>
 // Example: node index.js https://www.youtube.com/watch?v=xxxx 00:01:00 00:02:00
 
 const [,, youtubeUrl, startTime, endTime] = process.argv;
 
-if (!youtubeUrl || !startTime || !endTime) {
-  console.error('Usage: node index.js <youtube_url> <start_time> <end_time>');
-  process.exit(1);
-}
-
 const outputFile = 'trimmed_video.mp4';
+const tempFile = 'downloaded_video.mp4';
 
-console.log('Downloading video...');
-let videoStream;
-try {
-  videoStream = ytdl(youtubeUrl, { quality: 'highest', filter: 'audioandvideo' });
-} catch (err) {
-  console.error('Failed to get video stream. The video may be protected, private, or unavailable.');
-  process.exit(1);
+async function main() {
+  if (!youtubeUrl || !startTime || !endTime) {
+    console.error('Usage: node index.js <youtube_url> <start_time> <end_time>');
+    process.exit(1);
+  }
+
+  console.log('Downloading video with yt-dlp...');
+  try {
+    await youtubedl(youtubeUrl, {
+      output: tempFile,
+      format: 'mp4',
+      // You can add more yt-dlp options here if needed
+    });
+  } catch (err) {
+    console.error('Failed to download video with yt-dlp:', err.message);
+    process.exit(1);
+  }
+
+  console.log(`Trimming video from ${startTime} to ${endTime}...`);
+  ffmpeg(tempFile)
+    .setStartTime(startTime)
+    .setDuration(timeToSeconds(endTime) - timeToSeconds(startTime))
+    .output(outputFile)
+    .on('end', () => {
+      console.log(`Trimmed video saved as ${outputFile}`);
+      fs.unlinkSync(tempFile); // Clean up temp file
+    })
+    .on('error', (err) => {
+      console.error('Error:', err.message);
+    })
+    .run();
 }
 
-console.log(`Trimming video from ${startTime} to ${endTime}...`);
-ffmpeg(videoStream)
-  .setStartTime(startTime)
-  .setDuration(timeToSeconds(endTime) - timeToSeconds(startTime))
-  .output(outputFile)
-  .on('end', () => {
-    console.log(`Trimmed video saved as ${outputFile}`);
-  })
-  .on('error', (err) => {
-    console.error('Error:', err.message);
-    if (err.message.includes('410')) {
-      console.error('YouTube may have blocked this download method. Try updating ytdl-core or check if the video is age-restricted, private, or protected.');
-    }
-  })
-  .run();
+main();
 
 function timeToSeconds(time) {
   const parts = time.split(':').map(Number);
