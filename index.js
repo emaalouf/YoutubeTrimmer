@@ -15,7 +15,13 @@ if (!youtubeUrl || !startTime || !endTime) {
 const outputFile = 'trimmed_video.mp4';
 
 console.log('Downloading video...');
-const videoStream = ytdl(youtubeUrl, { quality: 'highestvideo' });
+let videoStream;
+try {
+  videoStream = ytdl(youtubeUrl, { quality: 'highest', filter: 'audioandvideo' });
+} catch (err) {
+  console.error('Failed to get video stream. The video may be protected, private, or unavailable.');
+  process.exit(1);
+}
 
 console.log(`Trimming video from ${startTime} to ${endTime}...`);
 ffmpeg(videoStream)
@@ -27,6 +33,9 @@ ffmpeg(videoStream)
   })
   .on('error', (err) => {
     console.error('Error:', err.message);
+    if (err.message.includes('410')) {
+      console.error('YouTube may have blocked this download method. Try updating ytdl-core or check if the video is age-restricted, private, or protected.');
+    }
   })
   .run();
 
