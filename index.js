@@ -13,11 +13,20 @@ if (!inputFile || !startTime || !endTime) {
 }
 
 console.log(`Trimming video from ${startTime} to ${endTime}...`);
+let totalDuration = timeToSeconds(endTime) - timeToSeconds(startTime);
 ffmpeg(inputFile)
   .setStartTime(startTime)
-  .setDuration(timeToSeconds(endTime) - timeToSeconds(startTime))
+  .setDuration(totalDuration)
   .output(outputFile)
+  .on('progress', (progress) => {
+    if (progress.timemark) {
+      const processed = timeToSeconds(progress.timemark);
+      const percent = Math.min(100, ((processed / totalDuration) * 100).toFixed(1));
+      process.stdout.write(`\rProgress: ${percent}%`);
+    }
+  })
   .on('end', () => {
+    process.stdout.write('\n');
     console.log(`Trimmed video saved as ${outputFile}`);
   })
   .on('error', (err) => {
